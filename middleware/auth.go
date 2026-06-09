@@ -37,7 +37,7 @@ func AuthMiddleware() gin.HandlerFunc {
     })
 
     if err != nil || !token.Valid {
-      c.JSON(http.StatusUnauthorized, gin.H{"error": fmt.Sprintf("Token inválido: %v", err)})
+      c.JSON(http.StatusUnauthorized, gin.H{"error": fmt.Sprintf("Invalid Token: %v", err)})
       c.Abort()
       return
     }
