@@ -16,12 +16,12 @@ type SensorPayload struct {
 	MacAddress		string		`json:"macAddress" binding:"required"`
 	Temperature		float64 	`json:"temperature" binding:"required"`
 	Humidity		float64		`json:"humidity" binding:"required"`
-	Timestamp		string		`json"timestamp" binding:"required"`
+	Timestamp		string		`json:"timestamp" binding:"required"`
 }
 
 type QueueMessage struct {
 	SensorPayload
-	TenantID strin `json:"tenantId"`
+	TenantID string `json:"tenantId"`
 }
 
 func main() {
@@ -36,7 +36,7 @@ func main() {
 	r := gin.Default()
 
 	r.GET("/health", func(c *gin.Context) {
-		c.JSON(http.StatusOk, gin.H{
+		c.JSON(http.StatusOK, gin.H{
 			"status": "healthy",
 			"service": "sensor-ingestion-go",
 		})
@@ -70,7 +70,7 @@ func handleIngestion(c *gin.Context) {
   }
   tenantID := tenantIDRaw.(string)
 
-  message := QueueMEssage{
+  message := QueueMessage{
     SensorPayload: payload,
     TenantID:      tenantID,
   }
@@ -81,7 +81,7 @@ func handleIngestion(c *gin.Context) {
     return
   }
 
-  if err =: rabbitmq.GlobalPublisher.Publish(messageBytes); err != nil {
+  if err := rabbitmq.GlobalPublisher.Publish(messageBytes); err != nil {
     log.Printf("[ERRO] Failed to public message in queue: %v", err)
     c.JSON(http.StatusServiceUnavailable, gin.H{
       "error": "Message service unavailable temporary",
