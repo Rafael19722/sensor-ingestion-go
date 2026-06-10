@@ -58,6 +58,20 @@ func InitRabbitMQ() {
     log.Fatalf("CRITIAL ERROR: Failed to declair a queue in RabbitMQ: %v", err)
   }
 
+  _, err = channel.QueueDeclare(
+    "sensor_queue_python",
+    true,
+    false,
+    false,
+    false,
+    nil,
+  )
+  if err != nil {
+    channel.Close()
+    connection.Close()
+    log.Fatalf("CRITICAL ERROR: Failed to declare sensor_queue_python: %v", err)
+  }
+
   GlobalPublisher = &RabbitMQConn{
     conn: connection,
     channel: channel,
@@ -72,6 +86,18 @@ func (r *RabbitMQConn) Publish(body []byte) error {
     ctx,
     "",
     "sensor_queue",
+    false,
+    false,
+    amqp.Publishing{
+      ContentType: "application/json",
+      Body:        body,
+    },
+  )
+
+  err = r.channel.PublishWithContext(
+    ctx,
+    "",
+    "sensor_queue_python",
     false,
     false,
     amqp.Publishing{
