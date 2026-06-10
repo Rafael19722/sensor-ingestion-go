@@ -45,7 +45,7 @@ func InitRabbitMQ() {
   }
 
   _, err = channel.QueueDeclare(
-    "sensor_data_queue",
+    "sensor_queue",
     true,
     false,
     false,
@@ -71,7 +71,7 @@ func (r *RabbitMQConn) Publish(body []byte) error {
   err := r.channel.PublishWithContext(
     ctx,
     "",
-    "sensor_data_queue",
+    "sensor_queue",
     false,
     false,
     amqp.Publishing{

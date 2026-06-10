@@ -51,7 +51,7 @@ func AuthMiddleware() gin.HandlerFunc {
 
     tenantID, exists := claims["tenant_id"]
     if !exists {
-      tenantID, exists = claims["tenantid"]
+      tenantID, exists = claims["tenantId"]
     }
 
     if !exists {
