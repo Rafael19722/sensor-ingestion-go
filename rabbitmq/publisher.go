@@ -78,7 +78,7 @@ func InitRabbitMQ() {
   }
 }
 
-func (r *RabbitMQConn) Publish(body []byte) error {
+func (r *RabbitMQConn) Publish(body []byte, isSignificant bool) error {
   ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
   defer cancel()
 
@@ -93,18 +93,23 @@ func (r *RabbitMQConn) Publish(body []byte) error {
       Body:        body,
     },
   )
+  if err != nil {
+    return err
+  }
 
-  err = r.channel.PublishWithContext(
-    ctx,
-    "",
-    "sensor_queue_python",
-    false,
-    false,
-    amqp.Publishing{
-      ContentType: "application/json",
-      Body:        body,
-    },
-  )
+  if isSignificant {
+    err = r.channel.PublishWithContext(
+      ctx,
+      "",
+      "sensor_queue_python",
+      false,
+      false,
+      amqp.Publishing{
+        ContentType: "application/json",
+        Body:        body,
+      },
+    )
+  }
 
   return err
 }

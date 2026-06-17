@@ -17,6 +17,7 @@ type SensorPayload struct {
 	Temperature		float64 	`json:"temperature" binding:"required"`
 	Humidity		float64		`json:"humidity" binding:"required"`
 	Timestamp		string		`json:"timestamp" binding:"required"`
+	IsSignificant	*bool		`json:"isSignificant" binding:"required"`
 }
 
 type QueueMessage struct {
@@ -81,7 +82,12 @@ func handleIngestion(c *gin.Context) {
     return
   }
 
-  if err := rabbitmq.GlobalPublisher.Publish(messageBytes); err != nil {
+  isSig := false
+  if payload.IsSignificant != nil {
+    isSig = *payload.IsSignificant
+  }
+
+  if err := rabbitmq.GlobalPublisher.Publish(messageBytes, isSig); err != nil {
     log.Printf("[ERRO] Failed to public message in queue: %v", err)
     c.JSON(http.StatusServiceUnavailable, gin.H{
       "error": "Message service unavailable temporary",
