@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"log"
 	"net/http"
+	"time"
 
 	"sensor-ingestion-go/config"
 	"sensor-ingestion-go/middleware"
@@ -13,22 +14,32 @@ import (
 )
 
 type SensorPayload struct {
-	MacAddress		string		`json:"macAddress" binding:"required"`
-	Temperature		float64 	`json:"temperature" binding:"required"`
-	Humidity		float64		`json:"humidity" binding:"required"`
-	Timestamp		string		`json:"timestamp" binding:"required"`
-	IsSignificant	*bool		`json:"isSignificant" binding:"required"`
+	MacAddress  string   `json:"macAddress" binding:"required"`
+	Temperature *float64 `json:"temperature" binding:"required"`
+	Humidity    *float64 `json:"humidity"`
+	Timestamp   string   `json:"timestamp"`
 }
 
 type QueueMessage struct {
-	SensorPayload
-	TenantID string `json:"tenantId"`
+	MacAddress    string   `json:"macAddress"`
+	Temperature   float64  `json:"temperature"`
+	Humidity      *float64 `json:"humidity"`
+	Timestamp     string   `json:"timestamp"`
+	TenantID      string   `json:"tenantId"`
+	IsSignificant bool     `json:"isSignificant"`
 }
+
+var sigTracker *significanceTracker
 
 func main() {
 	log.Println("[App] Starting Sensor Ingestion...")
 
 	config.LoadConfig()
+
+	sigTracker = newSignificanceTracker(
+		time.Duration(config.GlobalConfig.SignificantIntervalMin)*time.Minute,
+		config.GlobalConfig.SignificantDeltaC,
+	)
 
 	rabbitmq.InitRabbitMQ()
 
@@ -71,9 +82,24 @@ func handleIngestion(c *gin.Context) {
   }
   tenantID := tenantIDRaw.(string)
 
+  ts := time.Now().UTC()
+  if payload.Timestamp != "" {
+    if parsed, err := time.Parse(time.RFC3339, payload.Timestamp); err == nil {
+      ts = parsed.UTC()
+    } else {
+      log.Printf("[WARN] Bad timestamp %q from %s, using server time", payload.Timestamp, payload.MacAddress)
+    }
+  }
+
+  significant := sigTracker.evaluate(payload.MacAddress, *payload.Temperature, ts)
+
   message := QueueMessage{
-    SensorPayload: payload,
+    MacAddress:    payload.MacAddress,
+    Temperature:   *payload.Temperature,
+    Humidity:      payload.Humidity,
+    Timestamp:     ts.Format(time.RFC3339),
     TenantID:      tenantID,
+    IsSignificant: significant,
   }
 
   messageBytes, err := json.Marshal(message)
@@ -82,12 +108,7 @@ func handleIngestion(c *gin.Context) {
     return
   }
 
-  isSig := false
-  if payload.IsSignificant != nil {
-    isSig = *payload.IsSignificant
-  }
-
-  if err := rabbitmq.GlobalPublisher.Publish(messageBytes, isSig); err != nil {
+  if err := rabbitmq.GlobalPublisher.Publish(messageBytes); err != nil {
     log.Printf("[ERRO] Failed to public message in queue: %v", err)
     c.JSON(http.StatusServiceUnavailable, gin.H{
       "error": "Message service unavailable temporary",

@@ -3,6 +3,7 @@ package config
 import (
 	"log"
 	"os"
+	"strconv"
 
 	"github.com/joho/godotenv"
 )
@@ -11,6 +12,8 @@ type Config struct {
 	Port		string
 	JWTSecret	string
 	RabbitMQURL string
+	SignificantIntervalMin int
+	SignificantDeltaC      float64
 }
 
 var GlobalConfig *Config
@@ -24,6 +27,8 @@ func LoadConfig() {
 		Port:			getEnv("PORT", "8080"),
 		JWTSecret:  	getEnv("JWT_SECRET", ""),
 		RabbitMQURL:	getEnv("RABBITMQ_URL", "amqp://admin:secret@localhost:5672/"),
+		SignificantIntervalMin: getEnvInt("SIGNIFICANT_INTERVAL_MINUTES", 5),
+		SignificantDeltaC:      getEnvFloat("SIGNIFICANT_DELTA_C", 0.5),
 	}
 
 	if GlobalConfig.JWTSecret == "" {
@@ -37,4 +42,22 @@ func getEnv(key, defaultValue string) string {
     return defaultValue
   }
   return value
+}
+
+func getEnvInt(key string, defaultValue int) int {
+  if value := os.Getenv(key); value != "" {
+    if parsed, err := strconv.Atoi(value); err == nil {
+      return parsed
+    }
+  }
+  return defaultValue
+}
+
+func getEnvFloat(key string, defaultValue float64) float64 {
+  if value := os.Getenv(key); value != "" {
+    if parsed, err := strconv.ParseFloat(value, 64); err == nil {
+      return parsed
+    }
+  }
+  return defaultValue
 }
